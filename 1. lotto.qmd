@@ -1,0 +1,76 @@
+---
+title: "로또 당첨번호 크롤링 및 시각화"
+author: "godorii"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# 패키지 설치
+if (!requireNamespace("rvest", quietly = TRUE)) {
+  install.packages("rvest")
+}
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+
+# 패키지 로드
+library(rvest)
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r}
+# 특정 회차의 로또 번호를 가져오는 함수 지정
+get_lotto_numbers <- function(round) {
+  url <- paste0("https://www.dhlottery.co.kr/gameResult.do?method=byWin&drwNo=", round)
+  page <- read_html(url)
+  
+  numbers <- page %>% 
+    html_nodes(".ball_645") %>%
+    html_text() %>%
+    as.numeric()
+  
+  return(numbers)
+}
+
+# 로또 번호를 저장할 리스트 지정 및 초기화
+lotto_numbers <- list()
+
+# 최근 10회차의 로또 번호를 가져오기
+for (i in 1:10) {
+  round <- 1071 - i + 1  # Adjust this to the latest round
+  numbers <- get_lotto_numbers(round)
+  if(length(numbers) > 0) {
+    lotto_numbers <- c(lotto_numbers, list(numbers))
+  }
+  Sys.sleep(2)
+}
+
+# lotto_numbers가 비어 있지 않은지 확인
+if(length(lotto_numbers) > 0) {
+  # 리스트를 df로 변환
+  lotto_numbers_df <- data.frame(number = unlist(lotto_numbers))
+} else {
+  stop("No data was scraped.")
+}
+
+# 각 번호의 빈도수 계산
+lotto_counts <- lotto_numbers_df %>%
+  group_by(number) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+# 각 번호의 빈도수 그래프로 시각화
+ggplot(lotto_counts, aes(x = factor(number), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "로또 당첨번호 빈도수",
+       x = "번호",
+       y = "빈도수") +
+  theme_minimal()
+```
+```
